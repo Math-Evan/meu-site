@@ -1,0 +1,2941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="tool">
+  <meta name="design-style" content="aurora">
+  <title>AdiaBack v2.0 — Simulador Interativo do Ciclo Hidrotérmico</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* Page and surfaces: deep oceanic slate steps (Aurora) */
+      --background: #0c1214;
+      --surface-container-low: #111a1e;
+      --surface-container: #152024;
+      --surface-container-high: #1c2a30;
+
+      /* Text */
+      --on-surface: #edf3f5;
+      --on-surface-variant: #94a8b0;
+
+      /* Borders */
+      --outline: #38515c;
+      --outline-variant: #213138;
+
+      /* Accents */
+      --primary: #63c7d6;
+      --on-primary: #081214;
+      --primary-container: #163840;
+      --on-primary-container: #c7f0f7;
+      --secondary: #5d7882;
+      --tertiary: #87d69b;
+      --error: #f27474;
+      --on-error: #1a0606;
+
+      /* Data series */
+      --data-1: #63c7d6;
+      --data-2: #87d69b;
+      --data-3: #e8b954;
+      --data-4: #f08c70;
+      --data-context: #415861;
+
+      /* Fonts */
+      --font-headline: 'Instrument Sans', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-label: 'Geist Mono', monospace;
+
+      /* Shape */
+      --rounded: 0.5rem;
+      --rounded-lg: 0.75rem;
+      --rounded-full: 9999px;
+
+      /* Style effects */
+      --hairline: 1px solid var(--outline-variant);
+      --hairline-strong: 1px solid var(--outline);
+      --panel-gradient: linear-gradient(180deg, #162226 0%, #111a1e 100%);
+      --heading-tracking: -0.025em;
+      --label-tracking: 0.06em;
+      --sage-tint: color-mix(in srgb, var(--tertiary) 13%, transparent);
+      --cyan-tint: color-mix(in srgb, var(--primary) 13%, transparent);
+      --amber-tint: color-mix(in srgb, var(--data-3) 14%, transparent);
+      --coral-tint: color-mix(in srgb, var(--data-4) 14%, transparent);
+      --uv-accent: #5e8bff;
+      --uv-tint: color-mix(in srgb, var(--uv-accent) 18%, transparent);
+
+      /* Shared semantic & focus tokens */
+      --positive: #87d69b;
+      --warning: #e8b954;
+      --focus: #63c7d6;
+
+      /* Focused Tool type scale */
+      --display-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.25rem);
+      --headline-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+      --subhead-size: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+      --body-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+      --label-size: 0.75rem;
+
+      /* Spacing scale (4pt base) */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.5rem;
+      --space-2xl: 4rem;
+      --space-3xl: 6rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    header { position: static !important; }
+
+    button, input, select {
+      font-family: inherit;
+      color: inherit;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .page-grid {
+      display: grid;
+      gap: var(--space-lg);
+      padding: var(--space-lg);
+      max-width: 1360px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .page-grid * { min-width: 0; }
+
+    /* Header */
+    .page-header {
+      display: grid;
+      gap: var(--space-sm);
+      padding-bottom: var(--space-md);
+      border-bottom: var(--hairline);
+    }
+
+    .page-title {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--display-size);
+      font-weight: 600;
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.1;
+      color: var(--on-surface);
+    }
+
+    .page-lede {
+      margin: 0;
+      max-width: 78ch;
+      color: var(--on-surface-variant);
+      font-size: var(--body-size);
+    }
+
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      margin-top: var(--space-xs);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+    .meta-strip span {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    .meta-strip strong {
+      color: var(--on-surface);
+      font-weight: 500;
+    }
+
+    /* Main Simulator Workspace */
+    .sim-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.68fr) minmax(320px, 0.92fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel-gradient);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+      padding: var(--space-lg);
+    }
+
+    .panel-compact {
+      background: var(--panel-gradient);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+      padding: var(--space-md);
+    }
+
+    .data-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+
+    /* Simulator Stage Column */
+    .stage-column {
+      display: grid;
+      gap: var(--space-md);
+    }
+
+    /* Control Bar */
+    .control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+      background: var(--panel-gradient);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+      padding: var(--space-sm) var(--space-md);
+    }
+
+    .segmented-group {
+      display: inline-flex;
+      background: var(--background);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      padding: var(--space-xs);
+      gap: var(--space-xs);
+    }
+
+    .seg-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      min-height: 44px;
+      padding: 0 var(--space-md);
+      border: 1px solid transparent;
+      border-radius: calc(var(--rounded) - 2px);
+      background: transparent;
+      color: var(--on-surface-variant);
+      font-family: var(--font-headline);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out),
+                  color var(--dur-micro) var(--ease-out),
+                  box-shadow var(--dur-micro) var(--ease-out);
+    }
+
+    .seg-btn:hover {
+      color: var(--on-surface);
+      background: var(--surface-container-high);
+    }
+
+    .seg-btn[aria-pressed="true"] {
+      background: var(--primary);
+      color: var(--on-primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .playback-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .ctrl-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0 var(--space-md);
+      border: var(--hairline-strong);
+      border-radius: var(--rounded);
+      background: var(--surface-container);
+      color: var(--on-surface);
+      font-family: var(--font-headline);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out),
+                  color var(--dur-micro) var(--ease-out),
+                  box-shadow var(--dur-micro) var(--ease-out);
+    }
+
+    .ctrl-btn:hover {
+      background: var(--surface-container-high);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .ctrl-btn.primary {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-color: var(--primary);
+    }
+
+    .ctrl-btn.primary:hover {
+      background: color-mix(in srgb, var(--primary) 88%, var(--on-surface));
+    }
+
+    .ctrl-btn.icon-only {
+      padding: 0 var(--space-sm);
+    }
+
+    .speed-control {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      background: var(--background);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      padding: var(--space-xs);
+    }
+
+    .speed-btn {
+      min-height: 36px;
+      min-width: 40px;
+      padding: 0 var(--space-sm);
+      border: none;
+      border-radius: calc(var(--rounded) - 2px);
+      background: transparent;
+      color: var(--on-surface-variant);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out),
+                  color var(--dur-micro) var(--ease-out);
+    }
+
+    .speed-btn:hover {
+      color: var(--on-surface);
+      background: var(--surface-container-high);
+    }
+
+    .speed-btn[aria-pressed="true"] {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      box-shadow: inset 0 0 0 1px var(--primary);
+    }
+
+    /* Scenario Sub-bar */
+    .scenario-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      background: var(--surface-container-low);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+    }
+
+    .scenario-info {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 0.875rem;
+      color: var(--on-surface-variant);
+    }
+
+    .scenario-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 2px var(--space-sm);
+      border-radius: var(--rounded);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      background: var(--cyan-tint);
+      color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    }
+
+    .scenario-badge.health {
+      background: var(--sage-tint);
+      color: var(--tertiary);
+      border-color: color-mix(in srgb, var(--tertiary) 35%, transparent);
+    }
+
+    /* Fixed-Camera Canvas Container */
+    .canvas-shell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1120 / 620;
+      min-height: 340px;
+      background: var(--background);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+      overflow: hidden;
+      container-type: inline-size;
+    }
+
+    #simCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Hotspot Overlay Layer */
+    .hotspot-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .hotspot-btn {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
+      padding: 0;
+      border-radius: var(--rounded-full);
+      border: 1.5px solid var(--primary);
+      background: color-mix(in srgb, var(--background) 86%, transparent);
+      color: var(--on-surface);
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px color-mix(in srgb, var(--background) 70%, transparent);
+      transition: transform var(--dur-micro) var(--ease-out),
+                  background-color var(--dur-micro) var(--ease-out),
+                  color var(--dur-micro) var(--ease-out),
+                  opacity var(--dur-short) var(--ease-out),
+                  box-shadow var(--dur-micro) var(--ease-out);
+    }
+
+    /* Larger invisible touch hit target for 44px accessibility without cluttering visual pin */
+    .hotspot-btn::after {
+      content: "";
+      position: absolute;
+      inset: -8px;
+    }
+
+    .hotspot-btn:hover,
+    .hotspot-btn:focus-visible {
+      transform: translate(-50%, -50%) scale(1.18);
+      background: var(--primary);
+      color: var(--on-primary);
+      z-index: 6;
+    }
+
+    .hotspot-btn.is-selected {
+      background: var(--primary);
+      color: var(--on-primary);
+      transform: translate(-50%, -50%) scale(1.22);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 28%, transparent);
+      z-index: 7;
+    }
+
+    .hotspot-btn.is-internal-dimmed {
+      opacity: 0.42;
+      border-style: dashed;
+      border-color: var(--secondary);
+    }
+
+    .hotspot-btn.is-internal-dimmed:hover {
+      opacity: 1;
+      border-style: solid;
+      border-color: var(--primary);
+    }
+
+    /* Floating Interactive Tooltip Box over Canvas */
+    .canvas-tooltip {
+      position: absolute;
+      z-index: 12;
+      width: min(300px, calc(100% - 24px));
+      background: color-mix(in srgb, var(--surface-container) 96%, var(--background));
+      border: 1px solid var(--primary);
+      border-radius: var(--rounded);
+      padding: var(--space-sm) var(--space-md);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity var(--dur-micro) var(--ease-out),
+                  transform var(--dur-micro) var(--ease-out);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--background) 85%, transparent);
+    }
+
+    .canvas-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs);
+      margin-bottom: var(--space-xs);
+    }
+
+    .tooltip-tag {
+      font-family: var(--font-label);
+      font-size: 0.6875rem;
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+
+    .tooltip-title {
+      margin: 0 0 var(--space-xs) 0;
+      font-family: var(--font-headline);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+
+    .tooltip-body {
+      margin: 0;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+      color: var(--on-surface-variant);
+    }
+
+    /* Stepper Strip (5 Cycle Phases) */
+    .stepper-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--space-sm);
+    }
+
+    .step-btn {
+      display: grid;
+      gap: var(--space-xs);
+      align-content: start;
+      text-align: left;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--surface-container-low);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: background-color var(--dur-short) var(--ease-out),
+                  box-shadow var(--dur-short) var(--ease-out);
+    }
+
+    .step-btn:hover {
+      background: var(--surface-container-high);
+    }
+
+    .step-btn.is-active {
+      background: var(--surface-container-high);
+      box-shadow: inset 0 0 0 1px var(--primary);
+    }
+
+    .step-btn.is-done {
+      background: var(--surface-container);
+    }
+
+    .step-num {
+      font-family: var(--font-label);
+      font-size: 0.6875rem;
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-btn.is-active .step-num {
+      color: var(--primary);
+    }
+
+    .step-btn.is-done .step-num {
+      color: var(--tertiary);
+    }
+
+    .step-name {
+      font-family: var(--font-headline);
+      font-size: 0.84rem;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--on-surface);
+    }
+
+    .step-progress-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      background: var(--outline-variant);
+    }
+
+    .step-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 80ms linear;
+    }
+
+    .step-btn.is-done .step-progress-fill {
+      width: 100%;
+      background: var(--tertiary);
+    }
+
+    /* Right Column: Inspector & Active Stage Details */
+    .inspector-column {
+      display: grid;
+      gap: var(--space-md);
+    }
+
+    .stage-detail-card {
+      display: grid;
+      gap: var(--space-sm);
+    }
+
+    .stage-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+
+    .stage-title {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--headline-size);
+      font-weight: 600;
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.15;
+      color: var(--on-surface);
+    }
+
+    .stage-desc {
+      margin: 0;
+      color: var(--on-surface-variant);
+      font-size: 0.9375rem;
+      line-height: 1.55;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      background: var(--sage-tint);
+      color: var(--tertiary);
+      border: 1px solid color-mix(in srgb, var(--tertiary) 35%, transparent);
+      border-radius: var(--rounded);
+      padding: 2px var(--space-sm);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      white-space: nowrap;
+    }
+
+    .status-chip.cyan {
+      background: var(--cyan-tint);
+      color: var(--primary);
+      border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+    }
+
+    .status-chip.uv {
+      background: var(--uv-tint);
+      color: var(--on-primary-container);
+      border-color: color-mix(in srgb, var(--uv-accent) 45%, transparent);
+    }
+
+    /* Component Inspector Card */
+    .component-inspector {
+      display: grid;
+      gap: var(--space-md);
+    }
+
+    .component-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+
+    .comp-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 4px var(--space-sm);
+      border-radius: var(--rounded);
+      border: var(--hairline);
+      background: var(--background);
+      color: var(--on-surface-variant);
+      font-family: var(--font-label);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out),
+                  color var(--dur-micro) var(--ease-out),
+                  box-shadow var(--dur-micro) var(--ease-out);
+    }
+
+    .comp-chip:hover {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+
+    .comp-chip[aria-pressed="true"] {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      box-shadow: inset 0 0 0 1px var(--primary);
+    }
+
+    .comp-detail-well {
+      background: var(--background);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-sm);
+    }
+
+    .comp-detail-title {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--subhead-size);
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+
+    .comp-detail-text {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: var(--on-surface-variant);
+    }
+
+    .comp-specs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-sm);
+      padding-top: var(--space-sm);
+      border-top: var(--hairline);
+    }
+
+    .spec-item {
+      display: grid;
+      gap: 2px;
+    }
+
+    .spec-key {
+      font-family: var(--font-label);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: var(--label-tracking);
+      color: var(--on-surface-variant);
+    }
+
+    .spec-val {
+      font-family: var(--font-label);
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: var(--on-surface);
+    }
+
+    /* Real-Time Operational Metrics Panel */
+    .metrics-section {
+      display: grid;
+      gap: var(--space-md);
+    }
+
+    .section-header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      padding-bottom: var(--space-xs);
+      border-bottom: var(--hairline);
+    }
+
+    .section-heading {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--headline-size);
+      font-weight: 600;
+      letter-spacing: var(--heading-tracking);
+      color: var(--on-surface);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+
+    .metric-tile {
+      background: var(--panel-gradient);
+      border: var(--hairline);
+      border-radius: var(--rounded-lg);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-xs);
+      transition: box-shadow var(--dur-short) var(--ease-out);
+    }
+
+    .metric-tile.is-highlighted {
+      box-shadow: inset 0 0 0 1px var(--primary);
+    }
+
+    .metric-value {
+      font-family: var(--font-headline);
+      font-size: clamp(1.5rem, 1.25rem + 0.8vw, 1.95rem);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.15;
+      color: var(--on-surface);
+    }
+
+    .metric-delta {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--tertiary);
+    }
+
+    .metric-delta.cyan {
+      color: var(--primary);
+    }
+
+    .metric-delta.amber {
+      color: var(--data-3);
+    }
+
+    /* Engineering Validation & Comparison Section */
+    .benchmark-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+
+    .data-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+      text-align: left;
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: var(--hairline-strong);
+    }
+
+    td {
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: var(--hairline);
+      color: var(--on-surface);
+      vertical-align: middle;
+    }
+
+    td.num, th.num {
+      text-align: right;
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+    }
+
+    td.delta-pos {
+      text-align: right;
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+      color: var(--tertiary);
+      font-weight: 500;
+    }
+
+    .compliance-list {
+      display: grid;
+      gap: var(--space-md);
+    }
+
+    .compliance-item {
+      background: var(--background);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-xs);
+    }
+
+    .compliance-item h3 {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--subhead-size);
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+
+    .compliance-item p {
+      margin: 0;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: var(--on-surface-variant);
+    }
+
+    .sources-footer {
+      padding-top: var(--space-md);
+      border-top: var(--hairline);
+      font-size: 0.8125rem;
+      color: var(--on-surface-variant);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
+
+    /* Responsive adaptations */
+    @media (max-width: 1080px) {
+      .sim-workspace {
+        grid-template-columns: 1fr;
+      }
+      .benchmark-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .stepper-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-grid {
+        padding: var(--space-md);
+        gap: var(--space-md);
+      }
+      .stepper-grid {
+        grid-template-columns: 1fr;
+      }
+      .control-bar {
+        padding: var(--space-sm);
+      }
+      .comp-specs-grid {
+        grid-template-columns: 1fr;
+      }
+      .hotspot-btn {
+        width: 22px;
+        height: 22px;
+        min-width: 22px;
+        min-height: 22px;
+        font-size: 0.625rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-grid">
+    <!-- Cabeçalho Técnico -->
+    <header class="page-header">
+      <h1 class="page-title">AdiaBack v2.0 — Simulador do Ciclo Hidrotérmico</h1>
+      <p class="page-lede">
+        Simulação interativa em vista lateral do retrofit adiabático.<br>
+<strong>Orientador:</strong> Roberto Ventura.<br>
+<strong>Alunos:</strong> Gilbert Fernandos; Matheus Gabry; Ricardo Dim Boi; Mauricio Vieira; Magnus Prazeres.
+      </p>
+      <div class="meta-strip">
+        <span>Patente INPI: <strong>BR 20 2026 004266 3</strong></span>
+        <span>Segurança Biológica: <strong>ANSI/ASHRAE 188-2021</strong></span>
+        <span>Cenário de Referência: <strong>35,0 °C · 40% UR</strong></span>
+        <span>Validação Retrofit: <strong>EN 378</strong></span>
+      </div>
+    </header>
+
+    <!-- Área Principal do Simulador -->
+    <section class="sim-workspace" aria-label="Simulador interativo do AdiaBack v2.0">
+      <!-- Coluna Esquerda: Controles, Palco Visual Fixo e Stepper -->
+      <div class="stage-column">
+        <!-- Barra de Controles de Vista e Playback -->
+        <div class="control-bar" role="toolbar" aria-label="Controles da simulação">
+          <div class="segmented-group" role="group" aria-label="Modo de visualização da câmera fixa">
+            <button type="button" class="seg-btn" id="btnViewExternal" aria-pressed="false" onclick="setViewMode('external')">
+              <i data-lucide="box" width="16" height="16" aria-hidden="true"></i>
+              Vista Externa
+            </button>
+            <button type="button" class="seg-btn" id="btnViewCutaway" aria-pressed="true" onclick="setViewMode('cutaway')">
+              <i data-lucide="layers" width="16" height="16" aria-hidden="true"></i>
+              Vista em Corte Animada
+            </button>
+          </div>
+
+          <div class="playback-group">
+            <button type="button" class="ctrl-btn primary" id="btnPlayPause" onclick="togglePlayPause()" aria-label="Pausar ou reproduzir simulação">
+              <i data-lucide="pause" width="16" height="16" id="iconPlayPause" aria-hidden="true"></i>
+              <span id="labelPlayPause">Pausar</span>
+            </button>
+            <button type="button" class="ctrl-btn icon-only" id="btnPrevStep" onclick="stepBackward()" title="Etapa anterior" aria-label="Etapa anterior">
+              <i data-lucide="skip-back" width="16" height="16" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="ctrl-btn icon-only" id="btnNextStep" onclick="stepForward()" title="Próxima etapa" aria-label="Próxima etapa">
+              <i data-lucide="skip-forward" width="16" height="16" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="ctrl-btn icon-only" id="btnResetSim" onclick="resetSimulation()" title="Reiniciar ciclo" aria-label="Reiniciar ciclo">
+              <i data-lucide="rotate-ccw" width="16" height="16" aria-hidden="true"></i>
+            </button>
+
+            <div class="speed-control" role="group" aria-label="Velocidade da animação">
+              <button type="button" class="speed-btn" data-speed="0.5" aria-pressed="false" onclick="setSpeed(0.5)">0.5×</button>
+              <button type="button" class="speed-btn" data-speed="1" aria-pressed="true" onclick="setSpeed(1)">1×</button>
+              <button type="button" class="speed-btn" data-speed="1.5" aria-pressed="false" onclick="setSpeed(1.5)">1.5×</button>
+              <button type="button" class="speed-btn" data-speed="2" aria-pressed="false" onclick="setSpeed(2)">2×</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de Modo Psicrométrico (Dual-Flow Flap Y) -->
+        <div class="scenario-bar">
+          <div class="scenario-info">
+            <span class="data-label">Modo de Operação:</span>
+            <span id="scenarioReadout" class="scenario-badge">Modo Adia-Save · UR ≥ 45% / Alta Carga (Condensadora)</span>
+          </div>
+          <div class="segmented-group" role="group" aria-label="Modo operacional da válvula Flap em Y">
+            <button type="button" class="seg-btn" id="btnModeSave" aria-pressed="true" onclick="setOpMode('adiasave')" style="min-height:36px; font-size:0.8rem;">
+              Modo Adia-Save
+            </button>
+            <button type="button" class="seg-btn" id="btnModeHealth" aria-pressed="false" onclick="setOpMode('health')" style="min-height:36px; font-size:0.8rem;">
+              Modo Saúde (UR &lt; 45%)
+            </button>
+          </div>
+        </div>
+
+        <!-- Palco Canvas em Câmera Fixa + Hotspots Interativos -->
+        <div class="canvas-shell" id="canvasShell">
+          <canvas id="simCanvas" aria-label="Animação técnica em vista lateral fixa do sistema AdiaBack v2.0 acoplado à condensadora HVAC"></canvas>
+          <div class="hotspot-layer" id="hotspotLayer" aria-label="Pontos de inspeção dos 12 componentes"></div>
+          <div class="canvas-tooltip" id="canvasTooltip" role="tooltip" aria-hidden="true">
+            <div class="tooltip-head">
+              <span class="tooltip-tag" id="tooltipTag">COMPONENTE</span>
+              <span class="tooltip-tag" id="tooltipBadge">INSPETOR</span>
+            </div>
+            <h3 class="tooltip-title" id="tooltipTitle"></h3>
+            <p class="tooltip-body" id="tooltipBody"></p>
+          </div>
+        </div>
+
+        <!-- Stepper Passo a Passo (5 Etapas do Ciclo Hidrotérmico) -->
+        <div class="stepper-grid" role="tablist" aria-label="Etapas do ciclo hidrotérmico">
+          <button type="button" class="step-btn is-active" data-step="0" role="tab" aria-selected="true" onclick="jumpToStep(0)">
+            <span class="step-num">Etapa 01 <span class="step-tag">Dreno</span></span>
+            <span class="step-name">Entrada &amp; Filtragem</span>
+            <span class="step-progress-bar"><span class="step-progress-fill" id="stepFill0"></span></span>
+          </button>
+          <button type="button" class="step-btn" data-step="1" role="tab" aria-selected="false" onclick="jumpToStep(1)">
+            <span class="step-num">Etapa 02 <span class="step-tag">254 nm</span></span>
+            <span class="step-name">Purificação UV-C</span>
+            <span class="step-progress-bar"><span class="step-progress-fill" id="stepFill1"></span></span>
+          </button>
+          <button type="button" class="step-btn" data-step="2" role="tab" aria-selected="false" onclick="jumpToStep(2)">
+            <span class="step-num">Etapa 03 <span class="step-tag">2,4 MHz</span></span>
+            <span class="step-name">Atomização Piezo</span>
+            <span class="step-progress-bar"><span class="step-progress-fill" id="stepFill2"></span></span>
+          </button>
+          <button type="button" class="step-btn" data-step="3" role="tab" aria-selected="false" onclick="jumpToStep(3)">
+            <span class="step-num">Etapa 04 <span class="step-tag">Flap Y</span></span>
+            <span class="step-name">Propulsão &amp; Direção</span>
+            <span class="step-progress-bar"><span class="step-progress-fill" id="stepFill3"></span></span>
+          </button>
+          <button type="button" class="step-btn" data-step="4" role="tab" aria-selected="false" onclick="jumpToStep(4)">
+            <span class="step-num">Etapa 05 <span class="step-tag">-7,8 °C</span></span>
+            <span class="step-name">Resfriamento Adiabático</span>
+            <span class="step-progress-bar"><span class="step-progress-fill" id="stepFill4"></span></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Coluna Direita: Etapa Ativa e Inspetor de Componentes -->
+      <aside class="inspector-column" aria-label="Detalhes técnicos da etapa e inspetor de componentes">
+        <!-- Explicação Dinâmica da Etapa -->
+        <section class="panel stage-detail-card" aria-live="polite">
+          <div class="stage-header-row">
+            <span class="data-label" id="activeStepEyebrow">Etapa 01 de 05 · Ciclo Hidrotérmico</span>
+            <span class="status-chip cyan" id="activeStepChip">1,45 L/h Entrada</span>
+          </div>
+          <h2 class="stage-title" id="activeStepTitle">Captação do Dreno e Filtragem</h2>
+          <p class="stage-desc" id="activeStepDesc"></p>
+        </section>
+
+        <!-- Inspetor Interativo dos 12 Componentes -->
+        <section class="panel component-inspector" aria-label="Inspetor de componentes">
+          <div class="stage-header-row">
+            <span class="data-label">Inspetor de Hardware (12 Módulos)</span>
+            <span class="data-label" id="inspectorVisibilityNote">Clique no pino ou na lista</span>
+          </div>
+
+          <div class="component-chips" id="componentChips"></div>
+
+          <div class="comp-detail-well" id="compDetailWell">
+            <div class="stage-header-row">
+              <span class="data-label" id="compCategory">Módulo Hidráulico</span>
+              <span class="status-chip" id="compBadge">Pino #01</span>
+            </div>
+            <h3 class="comp-detail-title" id="compTitle">Gabinete ABS Anti-UV</h3>
+            <p class="comp-detail-text" id="compText"></p>
+            <div class="comp-specs-grid" id="compSpecs"></div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <footer class="sources-footer">
+      <span>Instituto SENAI de Tecnologia Automação e Simulação.
+</span>
+      <span>Benfica, Rio de Janeiro, 2026.</span>
+    </footer>
+  </main>
+
+  <api-shim></api-shim>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =====================================================================
+       * 1. DESIGN TOKENS READ FROM CSS :root (NO HARDCODED HEX FOR THEME)
+       * ===================================================================== */
+      function getToken(name, fallback) {
+        const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return val || fallback;
+      }
+
+      const PALETTE = {
+        bg: getToken('--background', '#0c1214'),
+        surfaceLow: getToken('--surface-container-low', '#111a1e'),
+        surface: getToken('--surface-container', '#152024'),
+        surfaceHigh: getToken('--surface-container-high', '#1c2a30'),
+        text: getToken('--on-surface', '#edf3f5'),
+        textMuted: getToken('--on-surface-variant', '#94a8b0'),
+        outline: getToken('--outline', '#38515c'),
+        outlineVar: getToken('--outline-variant', '#213138'),
+        primary: getToken('--primary', '#63c7d6'),
+        primaryCont: getToken('--primary-container', '#163840'),
+        secondary: getToken('--secondary', '#5d7882'),
+        tertiary: getToken('--tertiary', '#87d69b'),
+        amber: getToken('--data-3', '#e8b954'),
+        coral: getToken('--data-4', '#f08c70'),
+        uv: getToken('--uv-accent', '#5e8bff'),
+        error: getToken('--error', '#f27474')
+      };
+
+      /* =====================================================================
+       * 2. GROUNDED DOMAIN DATA: 5 HYDROTHERMAL STAGES & 12 COMPONENTS
+       * ===================================================================== */
+      const STAGES = [
+        {
+          id: 0,
+          eyebrow: `Etapa 01 de 05 · Captação Hídrica`,
+          chip: `1,45 L/h Entrada`,
+          chipClass: `cyan`,
+          title: `Entrada do Dreno e Filtragem`,
+          desc: `A água condensada limpa da evaporadora (até 20 L/dia em 12.000 BTUs) escoa pelo tubo superior, atravessa o filtro de polímero para retenção de sólidos e abastece o reservatório de equalização monitorado pelo sensor capacitivo XKC-Y25.`
+        },
+        {
+          id: 1,
+          eyebrow: `Etapa 02 de 05 · Biossegurança ASHRAE 188`,
+          chip: `UV-C 254 nm · >40 mJ/cm²`,
+          chipClass: `uv`,
+          title: `Purificação Germicida UV-C`,
+          desc: `Em regime de batelada no reservatório, o LED UV-C (254 nm) irradia a água com fluência acima de 40 mJ/cm², inativando 99,9% dos microrganismos (incluindo a bactéria Legionella) em conformidade com a norma ANSI/ASHRAE 188.`
+        },
+        {
+          id: 2,
+          eyebrow: `Etapa 03 de 05 · Cavitação Ultrassônica`,
+          chip: `4 Pastilhas · 2,4 MHz`,
+          chipClass: `cyan`,
+          title: `Atomização Ultrassônica (< 5 µm)`,
+          desc: `O ESP32 detecta alta carga térmica pelo sensor SCT-013 e aciona a matriz de 4 transdutores piezoelétricos (2,4 MHz) em algoritmo de rodízio. A vibração rompe a tensão superficial da água purificada, gerando névoa fria densa de microgotas inferiores a 5 µm.`
+        },
+        {
+          id: 3,
+          eyebrow: `Etapa 04 de 05 · Aerodinâmica & Fluxo Dual`,
+          chip: `Micro-ventoinha + Flap Y`,
+          chipClass: ``,
+          title: `Propulsão e Direcionamento Inteligente`,
+          desc: `A micro-ventoinha de fluxo pressuriza a névoa fria pelo duto de poliuretano até a válvula Flap em "Y" motorizada. Com base na leitura do higrômetro DHT22, o motor servo direciona o jato para a serpentina externa (Adia-Save) ou para o ambiente interno (Saúde, UR < 45%).`
+        },
+        {
+          id: 4,
+          eyebrow: `Etapa 05 de 05 · Termodinâmica Aplicada`,
+          chip: `-7,8 °C · COP 2,8 → 3,5`,
+          chipClass: ``,
+          title: `Resfriamento Adiabático na Serpentina`,
+          desc: `Ao encontrar o ar quente de admissão (35,0 °C), as microgotas (< 5 µm) sofrem evaporação instantânea (flash evaporation) sem molhar as aletas. O ar entra na serpentina a 27,2 °C (-7,8 °C), aliviando a pressão de descarga, reduzindo em 18% a corrente do compressor e elevando o COP em 25%.`
+        }
+      ];
+
+      const COMPONENTS = [
+        {
+          id: `gabinete-abs`,
+          num: 1,
+          name: `Gabinete ABS Anti-UV`,
+          short: `Gabinete ABS`,
+          category: `Estrutura & Proteção`,
+          x: 156,
+          y: 175,
+          internal: false,
+          desc: `Gabinete modular em polímero ABS aditivado contra radiação ultravioleta solar. Projetado para retrofit externo não invasivo que preserva a garantia original do fabricante da condensadora.`,
+          specs: [
+            { k: `Material`, v: `ABS Anti-UV Industrial` },
+            { k: `Instalação`, v: `Auxílio Técnico` }
+          ]
+        },
+        {
+          id: `imas-n52`,
+          num: 2,
+          name: `Ímãs de Neodímio N52`,
+          short: `Ímãs N52`,
+          category: `Fixação Mecânica`,
+          x: 524,
+          y: 225,
+          internal: false,
+          desc: `Os ímãs de neodímio N52 não causam danos porque são fixados apenas na parte externa da condensadora, mantendo distância do compartimento eletrônico interno, e geram um campo magnético estático que não induz correntes nem interfere nos circuitos de controle.`,
+          specs: [
+            { k: `Grau Magnético`, v: `Neodímio N52` },
+            { k: `Fixação`, v: `Sem perfuração` }
+          ]
+        },
+        {
+          id: `filtro-polimero`,
+          num: 3,
+          name: `Filtro de Polímero`,
+          short: `Filtro Polímero`,
+          category: `Pré-Tratamento Hídrico`,
+          x: 245,
+          y: 182,
+          internal: true,
+          desc: `Elemento filtrante posicionado na conexão do dreno superior. Retém biofilme sólido e particulas vindas da bandeja da evaporadora antes da água ingressar no tanque.`,
+          specs: [
+            { k: `Posição`, v: `Admissão do dreno` },
+            { k: `Função`, v: `Retenção de sólidos` }
+          ]
+        },
+        {
+          id: `reservatorio`,
+          num: 4,
+          name: `Reservatório de Equalização`,
+          short: `Reservatório`,
+          category: `Armazenamento Pulmão`,
+          x: 315,
+          y: 355,
+          internal: true,
+          desc: `Tanque pulmão interno com tempo de residência calculado para desinfecção por batelada. Mantém o equilíbrio hídrico processando até 1,45 L/h de condensado com descarte zero.`,
+          specs: [
+            { k: `Balanço Hídrico`, v: `1,45 L/h (100% reuso)` },
+            { k: `Regime`, v: `Batelada / Equalização` }
+          ]
+        },
+        {
+          id: `led-uvc`,
+          num: 5,
+          name: `LED UV-C (254 nm)`,
+          short: `LED UV-C 254nm`,
+          category: `Biossegurança ASHRAE 188`,
+          x: 270,
+          y: 285,
+          internal: true,
+          desc: `Aplica dose de fluência superior a 40 mJ/cm², inativando 99,9% dos patógenos (incluindo Legionella) sem uso de produtos químicos. Revestimento das paredes internas com folhas de PTFE poroso, para refletir as ondas UV-C em todas as direções.`,
+          specs: [
+            { k: `Comprimento de Onda`, v: `254 nm (UV-C)` },
+            { k: `Dose / Eficácia`, v: `> 40 mJ/cm² · 99,9%` }
+          ]
+        },
+        {
+          id: `sensor-xkc`,
+          num: 6,
+          name: `Sensor Capacitivo XKC-Y25`,
+          short: `Sensor XKC-Y25`,
+          category: `Instrumentação de Nível`,
+          x: 170,
+          y: 370,
+          internal: true,
+          desc: `Sensor de nível sem contato fixado na parede externa do reservatório. Imune a turbulência e incrustações, informa ao ESP32 o volume disponível e bloqueia a cavitação a seco.`,
+          specs: [
+            { k: `Modelo`, v: `XKC-Y25 Capacitivo` },
+            { k: `Contato Hídrico`, v: `Não invasivo (externo)` }
+          ]
+        },
+        {
+          id: `matriz-piezo`,
+          num: 7,
+          name: `Matriz Piezoelétrica (2,4 MHz)`,
+          short: `Matriz 2,4MHz`,
+          category: `Núcleo de Atomização`,
+          x: 270,
+          y: 456,
+          internal: true,
+          desc: `Arranjo de 4 transdutores piezoelétricos operando na faixa de 1,7 à 2,4 MHz). Gera névoa fria com gotículas menores que 5 µm sob algoritmo de rodízio (duas acionadas por vez para maximizar vida útil das pastílhas).`,
+          specs: [
+            { k: `Configuração`, v: `4 pastilhas · 2,4 MHz` },
+            { k: `Vazão / Gota`, v: `1,2–1,6 L/h · < 5 µm` }
+          ]
+        },
+        {
+          id: `micro-ventoinha`,
+          num: 8,
+          name: `Micro-ventoinha de Fluxo`,
+          short: `Micro-ventoinha`,
+          category: `Propulsão Aerodinâmica`,
+          x: 402,
+          y: 365,
+          internal: true,
+          desc: `Turbina compacta de fluxo direcionado que transporta a névoa fria da câmara de cavitação através do duto de poliuretano (PU) até a válvula de saída sem condensação prematura.`,
+          specs: [
+            { k: `Duto Associado`, v: `Poliuretano (PU)` },
+            { k: `Função`, v: `Extração de névoa` }
+          ]
+        },
+        {
+          id: `valvula-flap`,
+          num: 9,
+          name: `Válvula Flap em "Y"`,
+          short: `Flap em "Y"`,
+          category: `Direcionamento Motorizado`,
+          x: 452,
+          y: 222,
+          internal: true,
+          desc: `Divisor aerodinâmico em geometria "Y" atuado por motor servo. Alterna automaticamente entre o Modo Adia-Save (serpentina externa) e o Modo Saúde (umidificação interna quando UR < 45%).`,
+          specs: [
+            { k: `Atuador`, v: `Micro-servo proporcional` },
+            { k: `Fluxos`, v: `Adia-Save / Saúde` }
+          ]
+        },
+        {
+          id: `esp32`,
+          num: 10,
+          name: `Microcontrolador ESP32`,
+          short: `ESP32 Dual-Core`,
+          category: `Inteligência IoT & Controle`,
+          x: 420,
+          y: 455,
+          internal: true,
+          desc: `Unidade de processamento Dual-Core em baía seca isolada. Lê o sensor de corrente não invasivo SCT-013 do compressor, gerencia o rodízio PWM das pastilhas e publica telemetria via protocolo MQTT.`,
+          specs: [
+            { k: `Conectividade`, v: `Wi-Fi / MQTT IoT` },
+            { k: `Sensor de Carga`, v: `SCT-013 (corrente)` }
+          ]
+        },
+        {
+          id: `sensor-dht22`,
+          num: 11,
+          name: `Sensor DHT22`,
+          short: `Sensor DHT22`,
+          category: `Psicrometria Ambiental`,
+          x: 146,
+          y: 280,
+          internal: false,
+          desc: `Termo-higrômetro digital de alta precisão montado em tomada de ar lateral. Mede temperatura de bulbo seco e umidade relativa (% UR) para calcular a viabilidade de evaporação instantânea.`,
+          specs: [
+            { k: `Variáveis`, v: `Temp (°C) & UR (%)` },
+            { k: `Papel`, v: `Lógica Adia-Save / Saúde` }
+          ]
+        },
+        {
+          id: `display-lcd`,
+          num: 12,
+          name: `Display LCD`,
+          short: `Display LCD`,
+          category: `Interface Local (IHM)`,
+          x: 486,
+          y: 488,
+          internal: false,
+          desc: `Visor frontal integrado ao gabinete exibindo em tempo real a queda térmica na serpentina, o ganho de COP, o status da desinfecção UV-C e o modo operacional ativo.`,
+          specs: [
+            { k: `Leituras`, v: `ΔT, COP, UV-C, Modo` },
+            { k: `Alimentação`, v: `Bivolt / Solar 20W` }
+          ]
+        }
+      ];
+
+      /* =====================================================================
+       * 3. APPLICATION STATE
+       * ===================================================================== */
+      const state = {
+        viewMode: 'cutaway',       // 'external' | 'cutaway'
+        isPlaying: true,
+        speed: 1,
+        opMode: 'adiasave',        // 'adiasave' | 'health'
+        cycleProgress: 0.08,       // 0 .. 1 across the 5 stages
+        currentStep: 0,            // 0 .. 4
+        selectedCompId: 'led-uvc',
+        hoveredCompId: null,
+        cutawayAlpha: 1,           // smooth animated 0 -> 1
+        flapAngle: 0,              // 0 = Adia-Save (right to coil), 1 = Health (up-left)
+        timeSec: 0,
+        lastTs: 0,
+        isStepLocked: false
+      };
+
+      const STEP_DURATION_SEC = 18; // Full 5-stage cycle at 1x = 18s (3.6s per stage)
+
+      /* Particles for realistic fluid dynamics */
+      const waterDrops = [];
+      const mistParticles = [];
+      const uvSparkles = [];
+      const airRibbons = [];
+
+      function initParticles() {
+        for (let i = 0; i < 16; i++) {
+          waterDrops.push({ t: Math.random(), speed: 0.25 + Math.random() * 0.15, r: 2.2 + Math.random() * 1.4 });
+        }
+        for (let i = 0; i < 110; i++) {
+          mistParticles.push({
+            phase: Math.random(),
+            lane: (Math.random() - 0.5) * 2,
+            size: 1.8 + Math.random() * 2.8,
+            jitter: Math.random() * Math.PI * 2,
+            speed: 0.42 + Math.random() * 0.28
+          });
+        }
+        for (let i = 0; i < 22; i++) {
+          uvSparkles.push({
+            x: 190 + Math.random() * 165,
+            y: 332 + Math.random() * 118,
+            life: Math.random(),
+            r: 1.2 + Math.random() * 1.8
+          });
+        }
+        for (let i = 0; i < 11; i++) {
+          airRibbons.push({
+            y: 175 + i * 31,
+            phase: (i * 0.17) % 1
+          });
+        }
+      }
+
+      /* =====================================================================
+       * 4. STATE PERSISTENCE VIA notebookAppApi (GUARDED)
+       * ===================================================================== */
+      async function loadPersistedState() {
+        try {
+          if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === 'function') {
+            const saved = await window.notebookAppApi.getAppState();
+            if (saved && typeof saved === 'object') {
+              if (saved.viewMode === 'external' || saved.viewMode === 'cutaway') {
+                state.viewMode = saved.viewMode;
+                state.cutawayAlpha = saved.viewMode === 'cutaway' ? 1 : 0;
+              }
+              if (typeof saved.speed === 'number' && [0.5, 1, 1.5, 2].includes(saved.speed)) {
+                state.speed = saved.speed;
+              }
+              if (saved.opMode === 'adiasave' || saved.opMode === 'health') {
+                state.opMode = saved.opMode;
+                state.flapAngle = saved.opMode === 'health' ? 1 : 0;
+              }
+              if (typeof saved.selectedCompId === 'string' && COMPONENTS.some(c => c.id === saved.selectedCompId)) {
+                state.selectedCompId = saved.selectedCompId;
+              }
+            }
+          }
+        } catch (err) {
+          /* Ignore storage errors cleanly */
+        }
+      }
+
+      async function savePersistedState() {
+        try {
+          if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === 'function') {
+            await window.notebookAppApi.setAppState({
+              viewMode: state.viewMode,
+              speed: state.speed,
+              opMode: state.opMode,
+              selectedCompId: state.selectedCompId
+            });
+          }
+        } catch (err) {
+          /* Ignore storage errors cleanly */
+        }
+      }
+
+      /* =====================================================================
+       * 5. DOM REFERENCES & BUILDERS
+       * ===================================================================== */
+      const canvas = document.getElementById('simCanvas');
+      const ctx = canvas ? canvas.getContext('2d') : null;
+      const canvasShell = document.getElementById('canvasShell');
+      const hotspotLayer = document.getElementById('hotspotLayer');
+      const canvasTooltip = document.getElementById('canvasTooltip');
+
+      function buildHotspotsAndChips() {
+        const chipsWrap = document.getElementById('componentChips');
+        if (hotspotLayer) hotspotLayer.innerHTML = '';
+        if (chipsWrap) chipsWrap.innerHTML = '';
+
+        COMPONENTS.forEach(comp => {
+          /* Canvas Hotspot Pin */
+          if (hotspotLayer) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'hotspot-btn';
+            btn.dataset.compId = comp.id;
+            btn.textContent = String(comp.num);
+            btn.style.left = `${(comp.x / 1120) * 100}%`;
+            btn.style.top = `${(comp.y / 620) * 100}%`;
+            btn.setAttribute('aria-label', `${comp.num}. ${comp.name}`);
+            btn.addEventListener('click', function () {
+              selectComponent(comp.id, true);
+            });
+            btn.addEventListener('mouseenter', function () {
+              showTooltip(comp);
+            });
+            btn.addEventListener('mouseleave', function () {
+              hideTooltip();
+            });
+            btn.addEventListener('focus', function () {
+              showTooltip(comp);
+            });
+            btn.addEventListener('blur', function () {
+              hideTooltip();
+            });
+            hotspotLayer.appendChild(btn);
+          }
+
+          /* Inspector Selector Chip */
+          if (chipsWrap) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'comp-chip';
+            chip.dataset.compId = comp.id;
+            chip.setAttribute('aria-pressed', comp.id === state.selectedCompId ? 'true' : 'false');
+            chip.textContent = `${comp.num}. ${comp.short}`;
+            chip.addEventListener('click', function () {
+              selectComponent(comp.id, true);
+            });
+            chipsWrap.appendChild(chip);
+          }
+        });
+      }
+
+      function showTooltip(comp) {
+        if (!canvasTooltip || !canvasShell) return;
+        state.hoveredCompId = comp.id;
+        const tagEl = document.getElementById('tooltipTag');
+        const badgeEl = document.getElementById('tooltipBadge');
+        const titleEl = document.getElementById('tooltipTitle');
+        const bodyEl = document.getElementById('tooltipBody');
+
+        if (tagEl) tagEl.textContent = comp.category;
+        if (badgeEl) badgeEl.textContent = `MÓDULO #${String(comp.num).padStart(2, '0')}`;
+        if (titleEl) titleEl.textContent = comp.name;
+        if (bodyEl) bodyEl.textContent = comp.desc;
+
+        const pctX = (comp.x / 1120) * 100;
+        const pctY = (comp.y / 620) * 100;
+
+        /* Position intelligently so tooltip never overflows canvas edges */
+        if (pctX > 52) {
+          canvasTooltip.style.left = 'auto';
+          canvasTooltip.style.right = `${Math.max(2, 100 - pctX + 3)}%`;
+        } else {
+          canvasTooltip.style.right = 'auto';
+          canvasTooltip.style.left = `${Math.min(68, pctX + 3)}%`;
+        }
+
+        if (pctY > 62) {
+          canvasTooltip.style.top = 'auto';
+          canvasTooltip.style.bottom = `${Math.max(4, 100 - pctY + 4)}%`;
+        } else {
+          canvasTooltip.style.bottom = 'auto';
+          canvasTooltip.style.top = `${Math.max(4, pctY - 4)}%`;
+        }
+
+        canvasTooltip.classList.add('visible');
+        canvasTooltip.setAttribute('aria-hidden', 'false');
+      }
+
+      function hideTooltip() {
+        state.hoveredCompId = null;
+        if (!canvasTooltip) return;
+        canvasTooltip.classList.remove('visible');
+        canvasTooltip.setAttribute('aria-hidden', 'true');
+      }
+
+      function selectComponent(compId, autoOpenCutaway) {
+        const comp = COMPONENTS.find(c => c.id === compId);
+        if (!comp) return;
+        state.selectedCompId = compId;
+
+        /* If user selects an internal component while in External view, smoothly switch to Cutaway */
+        if (autoOpenCutaway && comp.internal && state.viewMode === 'external') {
+          setViewMode('cutaway', true);
+        }
+
+        renderComponentInspector();
+        updateHotspotStates();
+        savePersistedState();
+      }
+
+      function renderComponentInspector() {
+        const comp = COMPONENTS.find(c => c.id === state.selectedCompId) || COMPONENTS[0];
+        const catEl = document.getElementById('compCategory');
+        const badgeEl = document.getElementById('compBadge');
+        const titleEl = document.getElementById('compTitle');
+        const textEl = document.getElementById('compText');
+        const specsEl = document.getElementById('compSpecs');
+
+        if (catEl) catEl.textContent = comp.category;
+        if (badgeEl) badgeEl.textContent = `Pino #${String(comp.num).padStart(2, '0')}`;
+        if (titleEl) titleEl.textContent = comp.name;
+        if (textEl) textEl.textContent = comp.desc;
+
+        if (specsEl) {
+          specsEl.innerHTML = '';
+          comp.specs.forEach(sp => {
+            const box = document.createElement('div');
+            box.className = 'spec-item';
+            const k = document.createElement('span');
+            k.className = 'spec-key';
+            k.textContent = sp.k;
+            const v = document.createElement('span');
+            v.className = 'spec-val';
+            v.textContent = sp.v;
+            box.appendChild(k);
+            box.appendChild(v);
+            specsEl.appendChild(box);
+          });
+        }
+
+        document.querySelectorAll('.comp-chip').forEach(btn => {
+          btn.setAttribute('aria-pressed', btn.dataset.compId === comp.id ? 'true' : 'false');
+        });
+      }
+
+      function updateHotspotStates() {
+        document.querySelectorAll('.hotspot-btn').forEach(btn => {
+          const comp = COMPONENTS.find(c => c.id === btn.dataset.compId);
+          const isSelected = btn.dataset.compId === state.selectedCompId;
+          btn.classList.toggle('is-selected', isSelected);
+          const dimInternal = state.viewMode === 'external' && comp && comp.internal;
+          btn.classList.toggle('is-internal-dimmed', Boolean(dimInternal));
+        });
+      }
+
+      /* =====================================================================
+       * 6. PUBLIC HOISTED EVENT HANDLERS (DEFENSIVE JS)
+       * ===================================================================== */
+      function setViewMode(mode, skipSave) {
+        state.viewMode = mode === 'external' ? 'external' : 'cutaway';
+        const btnExt = document.getElementById('btnViewExternal');
+        const btnCut = document.getElementById('btnViewCutaway');
+        if (btnExt) btnExt.setAttribute('aria-pressed', state.viewMode === 'external' ? 'true' : 'false');
+        if (btnCut) btnCut.setAttribute('aria-pressed', state.viewMode === 'cutaway' ? 'true' : 'false');
+        updateHotspotStates();
+        if (!skipSave) savePersistedState();
+      }
+
+      function togglePlayPause() {
+        state.isPlaying = !state.isPlaying;
+        if (state.isPlaying) {
+          state.isStepLocked = false;
+        }
+        syncPlaybackButton();
+      }
+
+      function syncPlaybackButton() {
+        const label = document.getElementById('labelPlayPause');
+        const icon = document.getElementById('iconPlayPause');
+        if (label) label.textContent = state.isPlaying ? `Pausar` : `Reproduzir`;
+        if (icon && window.lucide) {
+          icon.setAttribute('data-lucide', state.isPlaying ? 'pause' : 'play');
+          window.lucide.createIcons();
+        }
+      }
+
+      function setSpeed(spd) {
+        state.speed = spd;
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+          btn.setAttribute('aria-pressed', Number(btn.dataset.speed) === spd ? 'true' : 'false');
+        });
+        savePersistedState();
+      }
+
+      function setOpMode(mode) {
+        state.opMode = mode === 'health' ? 'health' : 'adiasave';
+        const btnSave = document.getElementById('btnModeSave');
+        const btnHealth = document.getElementById('btnModeHealth');
+        const readout = document.getElementById('scenarioReadout');
+        if (btnSave) btnSave.setAttribute('aria-pressed', state.opMode === 'adiasave' ? 'true' : 'false');
+        if (btnHealth) btnHealth.setAttribute('aria-pressed', state.opMode === 'health' ? 'true' : 'false');
+        if (readout) {
+          if (state.opMode === 'adiasave') {
+            readout.textContent = `Modo Adia-Save · UR ≥ 45% / Alta Carga (Condensadora)`;
+            readout.classList.remove('health');
+          } else {
+            readout.textContent = `Modo Saúde · UR < 45% (Umidificação Estéril Interna)`;
+            readout.classList.add('health');
+          }
+        }
+        updateTelemetryAndStepper();
+        savePersistedState();
+      }
+
+      function jumpToStep(stepIdx) {
+        const clamped = Math.max(0, Math.min(4, stepIdx));
+        state.currentStep = clamped;
+        state.cycleProgress = clamped * 0.2 + 0.14;
+        state.isStepLocked = true;
+        state.isPlaying = false;
+        syncPlaybackButton();
+        updateStageUI();
+        updateTelemetryAndStepper();
+      }
+
+      function stepForward() {
+        const next = (state.currentStep + 1) % 5;
+        jumpToStep(next);
+      }
+
+      function stepBackward() {
+        const prev = (state.currentStep + 4) % 5;
+        jumpToStep(prev);
+      }
+
+      function resetSimulation() {
+        state.currentStep = 0;
+        state.cycleProgress = 0.02;
+        state.isStepLocked = false;
+        state.isPlaying = true;
+        syncPlaybackButton();
+        updateStageUI();
+        updateTelemetryAndStepper();
+      }
+
+      /* Expose functions globally for inline HTML handlers */
+      window.setViewMode = setViewMode;
+      window.togglePlayPause = togglePlayPause;
+      window.setSpeed = setSpeed;
+      window.setOpMode = setOpMode;
+      window.jumpToStep = jumpToStep;
+      window.stepForward = stepForward;
+      window.stepBackward = stepBackward;
+      window.resetSimulation = resetSimulation;
+
+      /* =====================================================================
+       * 7. STAGE UI & REAL-TIME TELEMETRY UPDATES
+       * ===================================================================== */
+      function updateStageUI() {
+        const s = STAGES[state.currentStep] || STAGES[0];
+        const eyebrow = document.getElementById('activeStepEyebrow');
+        const chip = document.getElementById('activeStepChip');
+        const title = document.getElementById('activeStepTitle');
+        const desc = document.getElementById('activeStepDesc');
+
+        if (eyebrow) eyebrow.textContent = s.eyebrow;
+        if (chip) {
+          chip.textContent = s.chip;
+          chip.className = 'status-chip' + (s.chipClass ? ' ' + s.chipClass : '');
+        }
+        if (title) title.textContent = s.title;
+        if (desc) desc.textContent = s.desc;
+      }
+
+      function updateTelemetryAndStepper() {
+        const p = state.cycleProgress;
+        const activeIdx = Math.min(4, Math.floor(p * 5));
+
+        if (activeIdx !== state.currentStep && !state.isStepLocked) {
+          state.currentStep = activeIdx;
+          updateStageUI();
+        }
+
+        /* Stepper buttons & sub-progress bars */
+        document.querySelectorAll('.step-btn').forEach((btn, idx) => {
+          btn.classList.toggle('is-active', idx === state.currentStep);
+          btn.classList.toggle('is-done', idx < state.currentStep);
+          btn.setAttribute('aria-selected', idx === state.currentStep ? 'true' : 'false');
+          const fill = document.getElementById('stepFill' + idx);
+          if (fill) {
+            if (idx < state.currentStep) {
+              fill.style.width = '100%';
+            } else if (idx === state.currentStep) {
+              const localP = ((p * 5) - idx) * 100;
+              fill.style.width = `${Math.max(8, Math.min(100, localP))}%`;
+            } else {
+              fill.style.width = '0%';
+            }
+          }
+        });
+
+        /* Real-time operational metrics interpolation */
+        const coolingFactor = state.opMode === 'adiasave'
+          ? Math.max(0, Math.min(1, (p - 0.68) / 0.24))
+          : 0;
+        const mistActive = p >= 0.38;
+        const uvActive = p >= 0.18;
+
+        const intakeTemp = 35.0 - 7.8 * coolingFactor;
+        const deltaT = -7.8 * coolingFactor;
+        const currentCop = 2.8 + 0.7 * coolingFactor;
+        const copGain = Math.round(25 * coolingFactor);
+        const energySave = (24.5 * coolingFactor).toFixed(1);
+        const ampDrop = Math.round(18 * coolingFactor);
+
+        const valDrain = document.getElementById('valDrain');
+        const deltaDrain = document.getElementById('deltaDrain');
+        const valDroplet = document.getElementById('valDroplet');
+        const valUvc = document.getElementById('valUvc');
+        const valTemp = document.getElementById('valTemp');
+        const deltaTemp = document.getElementById('deltaTemp');
+        const valCop = document.getElementById('valCop');
+        const deltaCop = document.getElementById('deltaCop');
+        const valEnergy = document.getElementById('valEnergy');
+        const deltaEnergy = document.getElementById('deltaEnergy');
+
+        if (valDrain) valDrain.textContent = `1,45 L/h`;
+        if (deltaDrain) deltaDrain.textContent = mistActive ? `100% processado · Resíduo Zero` : `Equalizando reservatório`;
+        if (valDroplet) valDroplet.textContent = mistActive ? `< 5 µm` : `Standby`;
+        if (valUvc) valUvc.textContent = uvActive ? `99,9%` : `Aguardando`;
+
+        if (state.opMode === 'health') {
+          if (valTemp) valTemp.textContent = `35,0 °C`;
+          if (deltaTemp) deltaTemp.textContent = `Fluxo desviado p/ umidificação interna`;
+          if (valCop) valCop.textContent = `2,8`;
+          if (deltaCop) deltaCop.textContent = `Modo Saúde ativo (UR < 45%)`;
+          if (valEnergy) valEnergy.textContent = `Conforto`;
+          if (deltaEnergy) deltaEnergy.textContent = `Névoa estéril UV-C no ambiente`;
+        } else {
+          if (valTemp) valTemp.textContent = coolingFactor > 0.05 ? `${deltaT.toFixed(1).replace('.', ',')} °C` : `0,0 °C`;
+          if (deltaTemp) deltaTemp.textContent = `35,0 °C → ${intakeTemp.toFixed(1).replace('.', ',')} °C na serpentina`;
+          if (valCop) valCop.textContent = coolingFactor > 0.05 ? `+${copGain}%` : `2,8 base`;
+          if (deltaCop) deltaCop.textContent = `COP 2,8 → ${currentCop.toFixed(1).replace('.', ',')} · -${ampDrop}% corrente`;
+          if (valEnergy) valEnergy.textContent = coolingFactor > 0.7 ? `24,5% – 30%` : `${energySave.replace('.', ',')}%`;
+          if (deltaEnergy) deltaEnergy.textContent = coolingFactor > 0.7 ? `Redução de OPEX · Modo Adia-Save` : `Rampa de economia em regime`;
+        }
+
+        /* Highlight metric tile matching current step */
+        const tileIds = ['tileDrain', 'tileUvc', 'tileDroplet', 'tileTemp', 'tileCop', 'tileEnergy'];
+        tileIds.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.remove('is-highlighted');
+        });
+        const stepTileMap = [
+          ['tileDrain'],
+          ['tileUvc'],
+          ['tileDroplet'],
+          ['tileTemp'],
+          ['tileTemp', 'tileCop', 'tileEnergy']
+        ];
+        (stepTileMap[state.currentStep] || []).forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add('is-highlighted');
+        });
+      }
+
+      /* =====================================================================
+       * 8. HIGH-REALISM FIXED-CAMERA CANVAS RENDERING ENGINE (1120 × 620)
+       * ===================================================================== */
+      function resizeCanvasForDPI() {
+        if (!canvas || !canvasShell) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = canvasShell.clientWidth;
+        const h = canvasShell.clientHeight;
+        if (w > 0 && h > 0) {
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+        }
+      }
+
+      function roundedRectPath(c, x, y, w, h, r) {
+        const rad = Math.min(r, w / 2, h / 2);
+        c.beginPath();
+        c.moveTo(x + rad, y);
+        c.lineTo(x + w - rad, y);
+        c.quadraticCurveTo(x + w, y, x + w, y + rad);
+        c.lineTo(x + w, y + h - rad);
+        c.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+        c.lineTo(x + rad, y + h);
+        c.quadraticCurveTo(x, y + h, x, y + h - rad);
+        c.lineTo(x, y + rad);
+        c.quadraticCurveTo(x, y, x + rad, y);
+        c.closePath();
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function mixColorRGB(rgb1, rgb2, t) {
+        const k = Math.max(0, Math.min(1, t));
+        const r = Math.round(lerp(rgb1[0], rgb2[0], k));
+        const g = Math.round(lerp(rgb1[1], rgb2[1], k));
+        const b = Math.round(lerp(rgb1[2], rgb2[2], k));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      function renderScene() {
+        if (!ctx || !canvas) return;
+        const W = 1120;
+        const H = 620;
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(canvas.width / W, canvas.height / H);
+
+        const p = state.cycleProgress;
+        const cut = state.cutawayAlpha;
+        const t = state.timeSec;
+
+        const drainActive = true;
+        const uvActive = p >= 0.18;
+        const piezoActive = p >= 0.38;
+        const fanActive = p >= 0.56;
+        const coolingFactor = state.opMode === 'adiasave'
+          ? Math.max(0, Math.min(1, (p - 0.68) / 0.24))
+          : 0;
+
+        /* 1. CAD Engineering Backdrop & Floor Base */
+        drawBackdrop(ctx, W, H);
+
+        /* 2. HVAC Condenser Unit (Right Half: x 540..1045) */
+        drawCondenserUnit(ctx, cut, t, fanActive, coolingFactor);
+
+        /* 3. Neodymium N52 Magnetic Brackets (Bridging x 508..540) */
+        drawNeodymiumMagnets(ctx, t);
+
+        /* 4. Top Drain Tube from Evaporator (x 75..245, y 42..148) */
+        drawDrainPipe(ctx, t, drainActive);
+
+        /* 5. AdiaBack v2.0 Cutaway Internals (revealed smoothly as cut -> 1) */
+        if (cut > 0.02) {
+          ctx.save();
+          ctx.globalAlpha = cut;
+          drawAdiaBackInternals(ctx, t, p, uvActive, piezoActive, fanActive, state.flapAngle);
+          ctx.restore();
+        }
+
+        /* 6. AdiaBack v2.0 Outer ABS Anti-UV Enclosure & LCD (fades smoothly to sectioned rim) */
+        drawAdiaBackExterior(ctx, cut, t, uvActive, piezoActive, coolingFactor);
+
+        /* 7. Mist Plume & Flash Evaporation Thermodynamic Zone (Always visible when active!) */
+        if (piezoActive && fanActive) {
+          drawExternalMistAndCooling(ctx, t, coolingFactor, state.flapAngle);
+        }
+
+        /* 8. Ambient Air Streamlines & Live Canvas Callouts */
+        drawThermodynamicAirflow(ctx, t, coolingFactor);
+
+        /* 9. Selected Component Reticle Highlight */
+        drawSelectedComponentReticle(ctx, t);
+
+        ctx.restore();
+      }
+
+      function drawBackdrop(c, W, H) {
+        /* Subtle radial atmospheric lighting */
+        const bgGrad = c.createRadialGradient(480, 310, 60, 560, 310, 640);
+        bgGrad.addColorStop(0, '#142025');
+        bgGrad.addColorStop(1, '#0b1012');
+        c.fillStyle = bgGrad;
+        c.fillRect(0, 0, W, H);
+
+        /* Technical CAD grid */
+        c.strokeStyle = 'rgba(56, 81, 92, 0.16)';
+        c.lineWidth = 1;
+        for (let gx = 40; gx < W; gx += 40) {
+          c.beginPath();
+          c.moveTo(gx, 0);
+          c.lineTo(gx, H);
+          c.stroke();
+        }
+        for (let gy = 40; gy < H; gy += 40) {
+          c.beginPath();
+          c.moveTo(0, gy);
+          c.lineTo(W, gy);
+          c.stroke();
+        }
+
+        /* Mounting floor / concrete base */
+        const floorGrad = c.createLinearGradient(0, 552, 0, H);
+        floorGrad.addColorStop(0, '#1a272d');
+        floorGrad.addColorStop(1, '#0a0f11');
+        c.fillStyle = floorGrad;
+        c.fillRect(0, 552, W, H - 552);
+        c.strokeStyle = 'rgba(99, 199, 214, 0.25)';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(60, 552);
+        c.lineTo(1060, 552);
+        c.stroke();
+      }
+
+      function drawCondenserUnit(c, cut, t, fanActive, coolingFactor) {
+        const cx = 540, cy = 120, cw = 505, ch = 425;
+
+        /* Vibration-damping rubber feet */
+        c.fillStyle = '#141a1d';
+        c.fillRect(585, 542, 46, 10);
+        c.fillRect(945, 542, 46, 10);
+
+        /* Outer galvanized steel shell */
+        const metalGrad = c.createLinearGradient(cx, cy, cx + cw, cy + ch);
+        metalGrad.addColorStop(0, '#2a373d');
+        metalGrad.addColorStop(0.5, '#1e282d');
+        metalGrad.addColorStop(1, '#151c20');
+        c.fillStyle = metalGrad;
+        roundedRectPath(c, cx, cy, cw, ch, 10);
+        c.fill();
+        c.strokeStyle = '#48606b';
+        c.lineWidth = 2;
+        c.stroke();
+
+        /* Top beveled condenser cap */
+        c.fillStyle = '#314047';
+        roundedRectPath(c, cx - 2, cy - 4, cw + 4, 22, 6);
+        c.fill();
+        c.strokeStyle = '#58727e';
+        c.lineWidth = 1;
+        c.stroke();
+
+        /* Exterior Fan Grille & Louvers (fades in Cutaway) */
+        if (cut < 0.98) {
+          c.save();
+          c.globalAlpha = 1 - cut * 0.88;
+
+          /* Circular exhaust fan grille on front-right */
+          const fx = 845, fy = 295, fr = 118;
+          c.fillStyle = '#11181b';
+          c.beginPath();
+          c.arc(fx, fy, fr, 0, Math.PI * 2);
+          c.fill();
+          c.strokeStyle = '#48606b';
+          c.lineWidth = 3;
+          c.stroke();
+
+          /* Spinning external fan behind protective rings */
+          drawFanBlades(c, fx, fy, fr - 14, t * 5.2, '#3b4e57');
+
+          /* Concentric wire guard rings */
+          c.strokeStyle = 'rgba(148, 168, 176, 0.45)';
+          c.lineWidth = 1.4;
+          for (let r = 28; r < fr; r += 22) {
+            c.beginPath();
+            c.arc(fx, fy, r, 0, Math.PI * 2);
+            c.stroke();
+          }
+
+          /* Side intake louvers on left face of condenser */
+          c.fillStyle = '#101619';
+          for (let ly = 165; ly < 495; ly += 20) {
+            roundedRectPath(c, 554, ly, 46, 10, 2);
+            c.fill();
+          }
+
+          /* Technical service badge */
+          c.fillStyle = '#253339';
+          roundedRectPath(c, 625, 168, 72, 26, 4);
+          c.fill();
+          c.fillStyle = PALETTE.textMuted;
+          c.font = '600 10px "Geist Mono", monospace';
+          c.fillText('HVAC 12k', 636, 185);
+
+          c.restore();
+        }
+
+        /* Cutaway Condenser Interior (Aluminum Fins, Copper Coil, Axial Fan, Compressor) */
+        if (cut > 0.02) {
+          c.save();
+          c.globalAlpha = cut;
+
+          /* Cutaway interior cavity */
+          c.fillStyle = '#0e1518';
+          roundedRectPath(c, 552, 144, 476, 388, 6);
+          c.fill();
+          c.strokeStyle = '#38515c';
+          c.lineWidth = 1.5;
+          c.stroke();
+
+          /* Aluminum Fin & Copper Tube Condenser Coil (left side of condenser: x 560..638) */
+          const warmFin = [240, 140, 112];
+          const coolFin = [99, 199, 214];
+          const finColor = mixColorRGB(warmFin, coolFin, coolingFactor);
+
+          /* Subtle thermal halo over coil */
+          const coilHalo = c.createLinearGradient(555, 155, 650, 155);
+          coilHalo.addColorStop(0, coolingFactor > 0.2 ? 'rgba(99, 199, 214, 0.22)' : 'rgba(240, 140, 112, 0.18)');
+          coilHalo.addColorStop(1, 'rgba(14, 21, 24, 0)');
+          c.fillStyle = coilHalo;
+          c.fillRect(555, 155, 95, 360);
+
+          /* Vertical coil frame & fins */
+          c.fillStyle = '#1b262b';
+          c.fillRect(564, 158, 68, 354);
+          c.strokeStyle = finColor;
+          c.lineWidth = 1.1;
+          for (let fy = 166; fy <= 504; fy += 7) {
+            c.beginPath();
+            c.moveTo(564, fy);
+            c.lineTo(632, fy);
+            c.stroke();
+          }
+
+          /* Copper U-bends and manifolds */
+          c.strokeStyle = '#d9845b';
+          c.lineWidth = 4;
+          for (let cyLoop = 178; cyLoop <= 490; cyLoop += 26) {
+            c.beginPath();
+            c.arc(634, cyLoop, 9, -Math.PI / 2, Math.PI / 2);
+            c.stroke();
+          }
+          c.fillStyle = '#d9845b';
+          c.fillRect(592, 152, 6, 366);
+
+          /* Axial Condenser Fan (top-right inside housing) */
+          drawFanBlades(c, 835, 245, 84, t * (coolingFactor > 0.3 ? 5.6 : 6.4), '#4c6773');
+          c.strokeStyle = '#38515c';
+          c.lineWidth = 2;
+          c.beginPath();
+          c.arc(835, 245, 88, 0, Math.PI * 2);
+          c.stroke();
+
+          /* Hermetic Compressor (bottom-right: x 760..895, y 355..520) */
+          const compReliefColor = mixColorRGB([240, 140, 112], [135, 214, 155], coolingFactor);
+          const compGlow = c.createRadialGradient(828, 435, 12, 828, 435, 92);
+          compGlow.addColorStop(0, coolingFactor > 0.35 ? 'rgba(135, 214, 155, 0.24)' : 'rgba(240, 140, 112, 0.26)');
+          compGlow.addColorStop(1, 'rgba(14, 21, 24, 0)');
+          c.fillStyle = compGlow;
+          c.beginPath();
+          c.arc(828, 435, 92, 0, Math.PI * 2);
+          c.fill();
+
+          const compGrad = c.createLinearGradient(775, 365, 880, 515);
+          compGrad.addColorStop(0, '#324148');
+          compGrad.addColorStop(0.5, '#202b30');
+          compGrad.addColorStop(1, '#12191c');
+          c.fillStyle = compGrad;
+          roundedRectPath(c, 775, 365, 105, 150, 32);
+          c.fill();
+          c.strokeStyle = compReliefColor;
+          c.lineWidth = 2;
+          c.stroke();
+
+          /* Copper suction & discharge lines */
+          c.strokeStyle = '#d9845b';
+          c.lineWidth = 6;
+          c.lineCap = 'round';
+          c.beginPath();
+          c.moveTo(810, 365);
+          c.lineTo(810, 330);
+          c.lineTo(645, 330);
+          c.lineTo(632, 330);
+          c.stroke();
+
+          /* Compressor status readout inside cutaway */
+          c.fillStyle = compReliefColor;
+          c.font = '600 11px "Geist Mono", monospace';
+          c.fillText(coolingFactor > 0.4 ? 'COP 3,5 | -18% AMP' : 'COP 2,8 | CARGA ALTA', 756, 354);
+          c.fillStyle = PALETTE.textMuted;
+          c.font = '500 10px "Geist Mono", monospace';
+          c.fillText('COMPRESSOR', 794, 444);
+
+          /* SCT-013 Non-invasive Current Sensor on compressor power lead */
+          c.strokeStyle = '#38515c';
+          c.lineWidth = 3;
+          c.beginPath();
+          c.moveTo(775, 488);
+          c.lineTo(710, 488);
+          c.lineTo(508, 488);
+          c.stroke();
+
+          c.fillStyle = '#244b61';
+          roundedRectPath(c, 708, 474, 24, 28, 4);
+          c.fill();
+          c.strokeStyle = PALETTE.primary;
+          c.lineWidth = 1.2;
+          c.stroke();
+          c.fillStyle = PALETTE.text;
+          c.font = '600 8px "Geist Mono", monospace';
+          c.fillText('SCT', 712, 492);
+
+          c.fillStyle = PALETTE.textMuted;
+          c.font = '500 10px "Geist Mono", monospace';
+          c.fillText('SERPENTINA AL/CU', 558, 526);
+
+          c.restore();
+        }
+      }
+
+      function drawFanBlades(c, cx, cy, r, angle, bladeColor) {
+        c.save();
+        c.translate(cx, cy);
+        c.rotate(angle);
+        c.fillStyle = bladeColor;
+        for (let i = 0; i < 3; i++) {
+          c.save();
+          c.rotate((i * Math.PI * 2) / 3);
+          c.beginPath();
+          c.moveTo(0, 0);
+          c.quadraticCurveTo(r * 0.65, -r * 0.35, r * 0.92, -r * 0.08);
+          c.quadraticCurveTo(r * 0.85, r * 0.34, 0, r * 0.14);
+          c.closePath();
+          c.fill();
+          c.restore();
+        }
+        c.fillStyle = '#152024';
+        c.beginPath();
+        c.arc(0, 0, r * 0.22, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = '#63c7d6';
+        c.lineWidth = 1.2;
+        c.stroke();
+        c.restore();
+      }
+
+      function drawNeodymiumMagnets(c, t) {
+        const magnetYPositions = [208, 448];
+        magnetYPositions.forEach(my => {
+          const mg = c.createLinearGradient(508, my, 540, my);
+          mg.addColorStop(0, '#8ba0aa');
+          mg.addColorStop(0.5, '#cbd9df');
+          mg.addColorStop(1, '#687d87');
+          c.fillStyle = mg;
+          roundedRectPath(c, 508, my, 32, 34, 4);
+          c.fill();
+          c.strokeStyle = '#edf3f5';
+          c.lineWidth = 1;
+          c.stroke();
+
+          /* Subtle N52 magnetic grip indicator lines */
+          c.strokeStyle = 'rgba(99, 199, 214, 0.45)';
+          c.lineWidth = 1;
+          c.beginPath();
+          c.moveTo(524, my + 8);
+          c.lineTo(524, my + 26);
+          c.stroke();
+        });
+      }
+
+      function drawDrainPipe(c, t, drainActive) {
+        /* Flexible translucent drain tube coming from top-left evaporator */
+        c.save();
+        c.lineCap = 'round';
+
+        /* Outer pipe wall */
+        c.strokeStyle = 'rgba(148, 168, 176, 0.38)';
+        c.lineWidth = 18;
+        c.beginPath();
+        c.moveTo(64, 46);
+        c.bezierCurveTo(155, 46, 245, 58, 245, 145);
+        c.stroke();
+
+        /* Inner fluid bore */
+        c.strokeStyle = '#0e1c22';
+        c.lineWidth = 12;
+        c.stroke();
+
+        /* Animated condensate water stream & droplets */
+        if (drainActive) {
+          c.strokeStyle = 'rgba(99, 199, 214, 0.55)';
+          c.lineWidth = 6;
+          c.stroke();
+
+          waterDrops.forEach(drop => {
+            const prog = (drop.t + t * drop.speed) % 1;
+            const u = 1 - prog;
+            /* Cubic Bezier evaluation matching pipe curve */
+            const x0 = 64, y0 = 46, x1 = 155, y1 = 46, x2 = 245, y2 = 58, x3 = 245, y3 = 145;
+            const px = u*u*u*x0 + 3*u*u*prog*x1 + 3*u*prog*prog*x2 + prog*prog*prog*x3;
+            const py = u*u*u*y0 + 3*u*u*prog*y1 + 3*u*prog*prog*y2 + prog*prog*prog*y3;
+            c.fillStyle = '#9be8f4';
+            c.beginPath();
+            c.arc(px, py, drop.r, 0, Math.PI * 2);
+            c.fill();
+          });
+        }
+
+        /* Bulkhead union fitting */
+        c.fillStyle = '#38515c';
+        roundedRectPath(c, 229, 134, 32, 16, 3);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1;
+        c.stroke();
+
+        /* Label */
+        c.fillStyle = PALETTE.textMuted;
+        c.font = '500 10px "Geist Mono", monospace';
+        c.fillText('DRENO DA EVAPORADORA (1,45 L/h)', 52, 28);
+        c.restore();
+      }
+
+      function drawAdiaBackInternals(c, t, p, uvActive, piezoActive, fanActive, flapAngle) {
+        /* Cross-sectioned ABS enclosure inner cavity */
+        c.fillStyle = '#0e171b';
+        roundedRectPath(c, 160, 155, 338, 360, 10);
+        c.fill();
+
+        /* 1. Polymer Filter Cartridge (top-left entry: x 218..272, y 160..204) */
+        c.fillStyle = '#1b2b33';
+        roundedRectPath(c, 220, 160, 50, 42, 4);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.2;
+        c.stroke();
+        /* Filter mesh pleats */
+        c.strokeStyle = 'rgba(148, 168, 176, 0.55)';
+        for (let px = 227; px <= 263; px += 6) {
+          c.beginPath();
+          c.moveTo(px, 164);
+          c.lineTo(px, 198);
+          c.stroke();
+        }
+        /* Dripping filtered water into reservoir */
+        const dripY = 204 + ((t * 90) % 120);
+        c.fillStyle = '#63c7d6';
+        c.beginPath();
+        c.arc(245, dripY, 2.6, 0, Math.PI * 2);
+        c.fill();
+
+        /* 2. Equalization Reservoir Tank (x 180..356, y 224..468) */
+        c.fillStyle = '#0b1418';
+        roundedRectPath(c, 180, 224, 176, 244, 8);
+        c.fill();
+        c.strokeStyle = '#38515c';
+        c.lineWidth = 2;
+        c.stroke();
+
+        /* Water Volume inside reservoir (y 324..464) */
+        c.save();
+        roundedRectPath(c, 182, 226, 172, 240, 6);
+        c.clip();
+
+        const waterTop = 324;
+        const waterGrad = c.createLinearGradient(0, waterTop, 0, 468);
+        if (uvActive) {
+          waterGrad.addColorStop(0, 'rgba(94, 139, 255, 0.55)');
+          waterGrad.addColorStop(0.5, 'rgba(54, 146, 204, 0.50)');
+          waterGrad.addColorStop(1, 'rgba(22, 68, 92, 0.72)');
+        } else {
+          waterGrad.addColorStop(0, 'rgba(99, 199, 214, 0.35)');
+          waterGrad.addColorStop(1, 'rgba(22, 56, 64, 0.65)');
+        }
+        c.fillStyle = waterGrad;
+        c.beginPath();
+        c.moveTo(182, 468);
+        for (let wx = 182; wx <= 354; wx += 8) {
+          const wave = Math.sin(wx * 0.08 + t * 3.5) * (piezoActive ? 3.2 : 1.5);
+          c.lineTo(wx, waterTop + wave);
+        }
+        c.lineTo(354, 468);
+        c.closePath();
+        c.fill();
+
+        /* Anti-slosh internal baffle hint */
+        c.strokeStyle = 'rgba(148, 168, 176, 0.2)';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        c.moveTo(212, 345);
+        c.lineTo(212, 465);
+        c.stroke();
+
+        /* 3. UV-C 254nm Germicidal Glow & Neutralization Sparkles */
+        if (uvActive) {
+          const uvPulse = 0.78 + 0.22 * Math.sin(t * 4.5);
+          const uvGlow = c.createRadialGradient(270, 320, 8, 270, 355, 118);
+          uvGlow.addColorStop(0, `rgba(128, 168, 255, ${0.72 * uvPulse})`);
+          uvGlow.addColorStop(0.45, `rgba(94, 139, 255, ${0.32 * uvPulse})`);
+          uvGlow.addColorStop(1, 'rgba(94, 139, 255, 0)');
+          c.fillStyle = uvGlow;
+          c.fillRect(182, 240, 172, 224);
+
+          /* Concentric UV fluence rings */
+          c.strokeStyle = `rgba(175, 205, 255, ${0.35 * uvPulse})`;
+          c.lineWidth = 1.2;
+          for (let r = 24; r <= 78; r += 26) {
+            const dynR = r + ((t * 18) % 26);
+            c.beginPath();
+            c.arc(270, 326, dynR, 0, Math.PI * 2);
+            c.stroke();
+          }
+
+          /* Pathogen inactivation sparkles */
+          uvSparkles.forEach(sp => {
+            const alpha = Math.sin(((sp.life + t * 0.65) % 1) * Math.PI);
+            c.fillStyle = `rgba(210, 232, 255, ${alpha * 0.85})`;
+            c.beginPath();
+            c.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+            c.fill();
+          });
+        }
+
+        /* 4. Ultrasonic Cavitation Plumes from 4 Piezo Discs */
+        if (piezoActive) {
+          const activeDisc = Math.floor(t * 2.2) % 4;
+          for (let d = 0; d < 4; d++) {
+            const dx = 216 + d * 36;
+            const isRoundRobin = d === activeDisc || d === (activeDisc + 1) % 4 || d === (activeDisc + 2) % 4;
+            if (isRoundRobin) {
+              const jetH = 26 + 10 * Math.sin(t * 14 + d);
+              const jetGrad = c.createLinearGradient(dx, 456, dx, 456 - jetH - 60);
+              jetGrad.addColorStop(0, 'rgba(199, 240, 247, 0.8)');
+              jetGrad.addColorStop(1, 'rgba(99, 199, 214, 0)');
+              c.strokeStyle = jetGrad;
+              c.lineWidth = 4;
+              c.beginPath();
+              c.moveTo(dx, 452);
+              c.lineTo(dx, 452 - jetH);
+              c.stroke();
+            }
+          }
+
+          /* Dense cold mist cloud filling upper reservoir headspace & exiting to riser duct */
+          for (let m = 0; m < 45; m++) {
+            const mx = 192 + ((m * 37 + t * 48) % 156);
+            const my = 240 + ((m * 23 + Math.sin(t * 3 + m) * 14) % 82);
+            c.fillStyle = 'rgba(215, 245, 250, 0.34)';
+            c.beginPath();
+            c.arc(mx, my, 4 + (m % 5), 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+        c.restore();
+
+        /* UV-C LED Quartz Emitter Rod (center of tank) */
+        c.fillStyle = '#253447';
+        roundedRectPath(c, 261, 226, 18, 22, 3);
+        c.fill();
+        c.fillStyle = uvActive ? '#b8d0ff' : '#4a6275';
+        roundedRectPath(c, 264, 248, 12, 82, 6);
+        c.fill();
+        c.strokeStyle = uvActive ? '#ffffff' : '#637f8c';
+        c.lineWidth = 1;
+        c.stroke();
+
+        /* 4 Piezoelectric Transducer Discs (2.4 MHz) at floor of tank */
+        const activeLead = Math.floor(t * 2.2) % 4;
+        for (let d = 0; d < 4; d++) {
+          const dx = 204 + d * 36;
+          c.fillStyle = piezoActive && d !== activeLead ? '#8fe6f2' : '#536c77';
+          roundedRectPath(c, dx, 452, 24, 9, 3);
+          c.fill();
+          c.strokeStyle = '#edf3f5';
+          c.lineWidth = 0.8;
+          c.stroke();
+        }
+
+        /* 5. XKC-Y25 Capacitive Level Sensor (mounted externally on left reservoir wall) */
+        c.fillStyle = '#1f3138';
+        roundedRectPath(c, 162, 354, 16, 32, 4);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.2;
+        c.stroke();
+        /* Status LED on XKC-Y25 */
+        c.fillStyle = PALETTE.tertiary;
+        c.beginPath();
+        c.arc(170, 364, 2.5, 0, Math.PI * 2);
+        c.fill();
+        /* Capacitive sensing wave arcs into water */
+        c.strokeStyle = 'rgba(135, 214, 155, 0.55)';
+        c.lineWidth = 1;
+        for (let ar = 6; ar <= 14; ar += 4) {
+          c.beginPath();
+          c.arc(178, 370, ar, -0.5, 0.5);
+          c.stroke();
+        }
+
+        /* 6. Mist Riser Duct (PU Duct) + Micro-ventoinha + Motorized Y-Flap Valve */
+        c.fillStyle = '#121d22';
+        c.beginPath();
+        c.moveTo(356, 260);
+        c.lineTo(382, 260);
+        c.lineTo(382, 404);
+        c.lineTo(426, 404);
+        c.lineTo(426, 275);
+        c.lineTo(498, 224);
+        c.lineTo(498, 178);
+        c.lineTo(426, 200);
+        c.lineTo(426, 158);
+        c.lineTo(382, 158);
+        c.lineTo(382, 232);
+        c.lineTo(356, 232);
+        c.closePath();
+        c.fill();
+        c.strokeStyle = '#38515c';
+        c.lineWidth = 1.8;
+        c.stroke();
+
+        /* Micro-ventoinha de Fluxo inside duct (x 404, y 365) */
+        c.fillStyle = '#1d2b32';
+        c.beginPath();
+        c.arc(404, 365, 24, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.5;
+        c.stroke();
+        drawFanBlades(c, 404, 365, 20, fanActive ? t * 14 : 0.4, PALETTE.primary);
+
+        /* Internal rising mist inside duct when piezo & fan active */
+        if (piezoActive && fanActive) {
+          for (let i = 0; i < 24; i++) {
+            const prog = (i / 24 + t * 0.9) % 1;
+            const mx = 394 + (i % 3) * 8 + Math.sin(t * 6 + i) * 3;
+            const my = 395 - prog * 175;
+            c.fillStyle = 'rgba(199, 240, 247, 0.55)';
+            c.beginPath();
+            c.arc(mx, my, 2.5, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+
+        /* Motorized Y-Flap Valve (pivot at x 430, y 225) */
+        c.save();
+        c.translate(430, 225);
+        /* flapAngle = 0 -> Adia-Save (flap blocks top health port, opens right condenser port) */
+        /* flapAngle = 1 -> Health (flap blocks right condenser port, opens top health port) */
+        const bladeAngle = lerp(-0.95, 0.35, flapAngle);
+        c.rotate(bladeAngle);
+        c.fillStyle = PALETTE.amber;
+        roundedRectPath(c, -4, -36, 8, 38, 3);
+        c.fill();
+        c.restore();
+
+        /* Servo pivot hub */
+        c.fillStyle = '#253840';
+        c.beginPath();
+        c.arc(430, 225, 7, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = PALETTE.amber;
+        c.lineWidth = 1.5;
+        c.stroke();
+
+        /* Health Mode Top Outlet (if Modo Saúde active) */
+        if (flapAngle > 0.35 && piezoActive && fanActive) {
+          for (let h = 0; h < 18; h++) {
+            const hp = (h / 18 + t * 0.8) % 1;
+            const hx = 404 + Math.sin(t * 4 + h) * 14 - hp * 18;
+            const hy = 158 - hp * 92;
+            c.fillStyle = `rgba(135, 214, 155, ${(1 - hp) * 0.65})`;
+            c.beginPath();
+            c.arc(hx, hy, 2.8 + hp * 3, 0, Math.PI * 2);
+            c.fill();
+          }
+          c.fillStyle = PALETTE.tertiary;
+          c.font = '600 10px "Geist Mono", monospace';
+          c.fillText('MODO SAÚDE (AMBIENTE INTERNO)', 288, 60);
+        }
+
+        /* 7. Isolated Dry Electronics Bay — ESP32 Dual-Core (x 374..492, y 418..506) */
+        c.fillStyle = '#111b20';
+        roundedRectPath(c, 374, 418, 118, 88, 6);
+        c.fill();
+        c.strokeStyle = '#38515c';
+        c.lineWidth = 1.5;
+        c.stroke();
+
+        /* ESP32 PCB */
+        c.fillStyle = '#133329';
+        roundedRectPath(c, 392, 434, 72, 42, 4);
+        c.fill();
+        c.strokeStyle = PALETTE.tertiary;
+        c.lineWidth = 1;
+        c.stroke();
+
+        /* ESP32 Shield Can + Wi-Fi trace */
+        c.fillStyle = '#9aaeb8';
+        roundedRectPath(c, 408, 442, 30, 26, 2);
+        c.fill();
+        c.fillStyle = '#152024';
+        c.font = '600 8px "Geist Mono", monospace';
+        c.fillText('ESP32', 411, 458);
+
+        /* Pulsing MQTT / PWM Telemetry LED */
+        const ledBlink = Math.sin(t * 6) > 0 ? 1 : 0.35;
+        c.fillStyle = `rgba(99, 199, 214, ${ledBlink})`;
+        c.beginPath();
+        c.arc(452, 446, 3, 0, Math.PI * 2);
+        c.fill();
+
+        /* PWM trace from ESP32 to Piezo transducers */
+        c.strokeStyle = 'rgba(99, 199, 214, 0.5)';
+        c.lineWidth = 1.2;
+        c.setLineDash([4, 3]);
+        c.beginPath();
+        c.moveTo(392, 458);
+        c.lineTo(340, 458);
+        c.stroke();
+        c.setLineDash([]);
+      }
+
+      function drawAdiaBackExterior(c, cut, t, uvActive, piezoActive, coolingFactor) {
+        const ax = 150, ay = 145, aw = 358, ah = 380;
+
+        /* External ABS Anti-UV Enclosure Shell (solid at cut=0, sectioned rim at cut=1) */
+        if (cut < 0.99) {
+          c.save();
+          c.globalAlpha = 1 - cut;
+
+          const shellGrad = c.createLinearGradient(ax, ay, ax + aw, ay + ah);
+          shellGrad.addColorStop(0, '#27353c');
+          shellGrad.addColorStop(0.55, '#1b262c');
+          shellGrad.addColorStop(1, '#121a1e');
+          c.fillStyle = shellGrad;
+          roundedRectPath(c, ax, ay, aw, ah, 14);
+          c.fill();
+          c.strokeStyle = '#536f7d';
+          c.lineWidth = 2;
+          c.stroke();
+
+          /* Industrial structural ribs on ABS shell */
+          c.strokeStyle = 'rgba(99, 199, 214, 0.14)';
+          c.lineWidth = 1.5;
+          for (let ry = 185; ry <= 485; ry += 36) {
+            c.beginPath();
+            c.moveTo(ax + 18, ry);
+            c.lineTo(ax + 168, ry);
+            c.stroke();
+          }
+
+          /* Top service cap seam */
+          c.strokeStyle = '#48606b';
+          c.lineWidth = 1.5;
+          c.beginPath();
+          c.moveTo(ax + 6, ay + 48);
+          c.lineTo(ax + aw - 6, ay + 48);
+          c.stroke();
+
+          /* Brand & Model Engraving on External Shell */
+          c.fillStyle = PALETTE.text;
+          c.font = '600 20px "Instrument Sans", sans-serif';
+          c.fillText('AdiaBack', 184, 218);
+          c.fillStyle = PALETTE.primary;
+          c.font = '600 12px "Geist Mono", monospace';
+          c.fillText('v2.0 · ABS ANTI-UV', 184, 238);
+
+          /* Translucent water inspection window slit on exterior */
+          c.fillStyle = '#0c1519';
+          roundedRectPath(c, 184, 330, 14, 120, 7);
+          c.fill();
+          c.fillStyle = uvActive ? 'rgba(94, 139, 255, 0.72)' : 'rgba(99, 199, 214, 0.52)';
+          roundedRectPath(c, 187, 365, 8, 82, 4);
+          c.fill();
+
+          /* Front External Display LCD Panel (x 358..490, y 398..500) */
+          drawLcdModule(c, 358, 398, 132, 102, 1, uvActive, piezoActive, coolingFactor);
+
+          c.restore();
+        }
+
+        /* Cutaway Sectioned ABS Wall Perimeter (visible when cut > 0) */
+        if (cut > 0.02) {
+          c.save();
+          c.globalAlpha = cut;
+          c.strokeStyle = '#536f7d';
+          c.lineWidth = 10;
+          roundedRectPath(c, ax + 5, ay + 5, aw - 10, ah - 10, 12);
+          c.stroke();
+
+          c.strokeStyle = '#8faab5';
+          c.lineWidth = 1.5;
+          roundedRectPath(c, ax, ay, aw, ah, 14);
+          c.stroke();
+
+          /* Ghosted corner LCD bezel in Cutaway so Display LCD remains inspectable without blocking ESP32 */
+          drawLcdModule(c, 434, 468, 72, 52, 0.92, uvActive, piezoActive, coolingFactor, true);
+          c.restore();
+        }
+
+        /* Mist Outlet Collar (right wall x 498..512, y 176..226) */
+        c.fillStyle = '#2d3f47';
+        roundedRectPath(c, 496, 178, 16, 48, 3);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.2;
+        c.stroke();
+
+        /* External DHT22 Sensor Housing (left wall x 136..154, y 258..304) */
+        c.fillStyle = '#22333b';
+        roundedRectPath(c, 136, 258, 18, 46, 4);
+        c.fill();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.2;
+        c.stroke();
+        c.strokeStyle = 'rgba(237, 243, 245, 0.45)';
+        c.lineWidth = 1;
+        for (let gy = 268; gy <= 294; gy += 6) {
+          c.beginPath();
+          c.moveTo(140, gy);
+          c.lineTo(149, gy);
+          c.stroke();
+        }
+      }
+
+      function drawLcdModule(c, x, y, w, h, alpha, uvActive, piezoActive, coolingFactor, compact) {
+        c.save();
+        c.globalAlpha *= alpha;
+        c.fillStyle = '#10181b';
+        roundedRectPath(c, x, y, w, h, 8);
+        c.fill();
+        c.strokeStyle = '#48606b';
+        c.lineWidth = 1.5;
+        c.stroke();
+
+        /* Backlit LCD screen */
+        c.fillStyle = '#082028';
+        roundedRectPath(c, x + 7, y + 7, w - 14, h - 14, 4);
+        c.fill();
+        c.strokeStyle = 'rgba(99, 199, 214, 0.45)';
+        c.lineWidth = 1;
+        c.stroke();
+
+        if (compact) {
+          c.fillStyle = PALETTE.primary;
+          c.font = '600 9px "Geist Mono", monospace';
+          c.fillText('LCD', x + 12, y + 22);
+          const tempVal = (35.0 - 7.8 * coolingFactor).toFixed(1).replace('.', ',');
+          c.fillStyle = PALETTE.tertiary;
+          c.fillText(`${tempVal}°C`, x + 12, y + 38);
+        } else {
+          const tempVal = (35.0 - 7.8 * coolingFactor).toFixed(1).replace('.', ',');
+          const copVal = (2.8 + 0.7 * coolingFactor).toFixed(1).replace('.', ',');
+          c.fillStyle = PALETTE.primary;
+          c.font = '600 10px "Geist Mono", monospace';
+          c.fillText(state.opMode === 'adiasave' ? 'ADIA-SAVE' : 'MODO SAÚDE', x + 14, y + 24);
+          c.fillStyle = PALETTE.text;
+          c.font = '600 15px "Instrument Sans", sans-serif';
+          c.fillText(`${tempVal} °C`, x + 14, y + 48);
+          c.fillStyle = PALETTE.tertiary;
+          c.font = '600 11px "Geist Mono", monospace';
+          c.fillText(`COP ${copVal}`, x + 14, y + 68);
+          c.fillStyle = uvActive ? '#8fb2ff' : PALETTE.textMuted;
+          c.font = '500 9px "Geist Mono", monospace';
+          c.fillText(uvActive ? 'UV-C 254nm OK' : 'UV-C STANDBY', x + 14, y + 84);
+        }
+        c.restore();
+      }
+
+      function drawExternalMistAndCooling(c, t, coolingFactor, flapAngle) {
+        if (flapAngle > 0.5) return; /* Diverted to Health branch */
+
+        /* Mist plume exiting AdiaBack outlet (512, 202) and spreading down across condenser intake gap (512..565) */
+        const plumeGrad = c.createRadialGradient(524, 210, 6, 545, 290, 140);
+        plumeGrad.addColorStop(0, 'rgba(199, 240, 247, 0.36)');
+        plumeGrad.addColorStop(0.5, 'rgba(99, 199, 214, 0.16)');
+        plumeGrad.addColorStop(1, 'rgba(99, 199, 214, 0)');
+        c.fillStyle = plumeGrad;
+        c.fillRect(508, 155, 72, 340);
+
+        /* Microdroplet particles (< 5 µm) flash-evaporating right before hitting aluminum fins */
+        mistParticles.forEach(mp => {
+          const prog = (mp.phase + t * mp.speed) % 1;
+          const startX = 512;
+          const startY = 200 + mp.lane * 14;
+          const mx = startX + prog * 58;
+          const my = startY + prog * prog * 235 + Math.sin(t * 5 + mp.jitter) * 4;
+          /* Evaporates rapidly as it reaches the fin plane (prog -> 1) */
+          const alpha = prog < 0.7 ? 0.72 : (1 - prog) / 0.3 * 0.72;
+          const radius = mp.size * (1 - prog * 0.65);
+
+          if (alpha > 0.02 && radius > 0.3) {
+            c.fillStyle = `rgba(210, 245, 252, ${alpha})`;
+            c.beginPath();
+            c.arc(mx, my, radius, 0, Math.PI * 2);
+            c.fill();
+          }
+        });
+      }
+
+      function drawThermodynamicAirflow(c, t, coolingFactor) {
+        /* Warm ambient intake arrows entering from gap top/left -> cooling through coil */
+        const arrowColorPre = 'rgba(240, 140, 112, 0.72)';
+        const arrowColorPost = mixColorRGB([240, 140, 112], [99, 199, 214], coolingFactor);
+
+        /* Pre-evaporation warm air intake badge above gap */
+        c.fillStyle = 'rgba(12, 18, 20, 0.85)';
+        roundedRectPath(c, 460, 74, 152, 30, 6);
+        c.fill();
+        c.strokeStyle = 'rgba(240, 140, 112, 0.55)';
+        c.lineWidth = 1;
+        c.stroke();
+        c.fillStyle = PALETTE.coral;
+        c.font = '600 11px "Geist Mono", monospace';
+        c.fillText('AR ADMISSÃO: 35,0 °C', 470, 93);
+
+        /* Cooled coil intake temperature readout */
+        const cooledTemp = (35.0 - 7.8 * coolingFactor).toFixed(1).replace('.', ',');
+        c.fillStyle = 'rgba(12, 18, 20, 0.85)';
+        roundedRectPath(c, 648, 74, 186, 30, 6);
+        c.fill();
+        c.strokeStyle = coolingFactor > 0.3 ? 'rgba(99, 199, 214, 0.65)' : 'rgba(240, 140, 112, 0.45)';
+        c.lineWidth = 1;
+        c.stroke();
+        c.fillStyle = coolingFactor > 0.3 ? PALETTE.primary : PALETTE.coral;
+        c.font = '600 11px "Geist Mono", monospace';
+        c.fillText(
+          coolingFactor > 0.3
+            ? `SERPENTINA: ${cooledTemp} °C (-7,8 °C)`
+            : `SERPENTINA: ${cooledTemp} °C`,
+          658,
+          93
+        );
+
+        /* Animated airflow streamlines entering top gap & sweeping right through coil */
+        airRibbons.forEach((rb, idx) => {
+          const prog = (rb.phase + t * 0.42) % 1;
+          if (idx < 4) {
+            /* Top ambient air entering gap */
+            const ax = 516 + idx * 8;
+            const ay = 116 + prog * 150;
+            c.strokeStyle = arrowColorPre;
+            c.lineWidth = 1.6;
+            c.beginPath();
+            c.moveTo(ax, ay);
+            c.lineTo(ax + 12, ay + 18);
+            c.stroke();
+          }
+          /* Horizontal air passing across coil face */
+          const sx = 548 + prog * 115;
+          c.strokeStyle = arrowColorPost;
+          c.lineWidth = 1.8;
+          c.beginPath();
+          c.moveTo(sx, rb.y);
+          c.lineTo(sx + 24, rb.y);
+          c.stroke();
+          /* Arrowhead */
+          c.beginPath();
+          c.moveTo(sx + 24, rb.y);
+          c.lineTo(sx + 18, rb.y - 3.5);
+          c.lineTo(sx + 18, rb.y + 3.5);
+          c.closePath();
+          c.fillStyle = arrowColorPost;
+          c.fill();
+        });
+      }
+
+      function drawSelectedComponentReticle(c, t) {
+        const comp = COMPONENTS.find(item => item.id === (state.hoveredCompId || state.selectedCompId));
+        if (!comp) return;
+        const pulse = 1 + 0.14 * Math.sin(t * 5);
+        c.save();
+        c.strokeStyle = PALETTE.primary;
+        c.lineWidth = 1.5;
+        c.setLineDash([4, 4]);
+        c.beginPath();
+        c.arc(comp.x, comp.y, 24 * pulse, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+      }
+
+      /* =====================================================================
+       * 9. MAIN ANIMATION LOOP (SINGLE OWNER)
+       * ===================================================================== */
+      let animId = null;
+
+      function tick(ts) {
+        if (!state.lastTs) state.lastTs = ts;
+        const dt = Math.min(0.05, (ts - state.lastTs) / 1000);
+        state.lastTs = ts;
+
+        /* Smoothly interpolate cutaway & flap transitions regardless of play/pause */
+        const targetCut = state.viewMode === 'cutaway' ? 1 : 0;
+        state.cutawayAlpha += (targetCut - state.cutawayAlpha) * Math.min(1, dt * 8);
+
+        const targetFlap = state.opMode === 'health' ? 1 : 0;
+        state.flapAngle += (targetFlap - state.flapAngle) * Math.min(1, dt * 8);
+
+        if (state.isPlaying) {
+          state.timeSec += dt * state.speed;
+          state.cycleProgress = (state.cycleProgress + (dt * state.speed) / STEP_DURATION_SEC) % 1;
+          updateTelemetryAndStepper();
+        } else if (state.isStepLocked) {
+          /* When inspecting a locked step, keep ambient fluid/fan physics alive smoothly! */
+          state.timeSec += dt * state.speed * 0.85;
+        }
+
+        renderScene();
+        animId = requestAnimationFrame(tick);
+      }
+
+      /* =====================================================================
+       * 10. INITIALIZATION
+       * ===================================================================== */
+      async function init() {
+        initParticles();
+        await loadPersistedState();
+
+        buildHotspotsAndChips();
+        setViewMode(state.viewMode, true);
+        setSpeed(state.speed);
+        setOpMode(state.opMode);
+        renderComponentInspector();
+        updateHotspotStates();
+        updateStageUI();
+        updateTelemetryAndStepper();
+        syncPlaybackButton();
+
+        resizeCanvasForDPI();
+        window.addEventListener('resize', resizeCanvasForDPI);
+
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+
+        if (animId) cancelAnimationFrame(animId);
+        animId = requestAnimationFrame(tick);
+
+        if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === 'function') {
+          window.notebookAppApi.notifyAppReady();
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
