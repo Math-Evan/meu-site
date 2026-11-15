@@ -1,2 +1,2 @@
 # meu-site
-Teste 2.
+Para apresentação do projeto integrador SENAI.
